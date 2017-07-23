@@ -1,0 +1,52 @@
+---
+resources:
+- name: apps-movie-fun-code 
+  type: git
+  source:
+    uri: https://github.com/banindya/apps-movie-fun-code.git 
+    branch: master 
+
+- name: movie-fun-service
+  type: cf
+  source:
+    api: https://api.system.dev.digifabricpcf.com 
+    username: {{cf-user}}
+    password: {{cf-password}}
+    organization: abhattacharya-pal 
+    space: sandbox
+    skip_cert_check: true
+ 
+
+jobs:
+- name: test
+  public: true
+  plan:
+  - get: apps-movie-fun-code 
+    trigger: true
+  - task: test
+    file: apps-movie-fun-code/ci/tasks/test.yml
+
+- name: deploy
+  public: true
+  plan:
+  - get: apps-movie-fun-code 
+    trigger: true
+    passed: [test]
+  - task: package
+    file: apps-movie-fun-code/ci/tasks/package.yml
+  - put: movie-fun-service 
+    params:
+      manifest: apps-movie-fun-code-service-source/manifest.yml
+      path: package-output/movie-fun.jar
+
+- name: smoke_test
+  public: true
+  plan:
+  - get: apps-movie-fun-code 
+    trigger: true
+    passed: [deploy]
+  - task: smoke_test
+    file: apps-movie-fun-code/ci/tasks/smoke-test.yml
+    params:
+      ATTENDEE_SERVICE_URL: {} 
+
